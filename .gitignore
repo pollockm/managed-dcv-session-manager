@@ -1,0 +1,6 @@
+*.code-workspace
+website/node_modules
+swagger
+swagger-js
+website/.eslintcache
+SSM_document_example_message.json

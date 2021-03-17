@@ -1,0 +1,15 @@
+{
+  "lambdaLayers": [],
+  "permissions": {
+    "api": {
+      "dcvstartstop": [
+        "read"
+      ]
+    },
+    "auth": {
+      "dcvstartstopc883f3ed": [
+        "read"
+      ]
+    }
+  }
+}

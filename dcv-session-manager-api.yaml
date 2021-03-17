@@ -1,0 +1,415 @@
+openapi: "3.0.0"
+info:
+  description: "DCV Session Manager API"
+  version: "2020.2"
+  title: "DCV Session Manager"
+tags:
+  - name: "sessions"
+    description: "Handling sessions"
+    externalDocs:
+      description: "Find out more"
+      url: "https://docs.aws.amazon.com/dcv/latest/adminguide/managing-sessions.html"
+  - name: "sessionPermissions"
+    description: "Handling session permissions"
+    externalDocs:
+      description: "Find out more"
+      url: "https://docs.aws.amazon.com/dcv/latest/adminguide/security-authorization-file-create.html"
+paths:
+  /describeSessions:
+    post:
+      tags:
+        - "sessions"
+      summary: "Finds all sessions"
+      description: "Find all sessions data"
+      operationId: "describeSessions"
+      requestBody:
+        description: "Describe sessions request data"
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DescribeSessionsRequestData"
+      responses:
+        "200":
+          description: "successful operation"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DescribeSessionsResponse"
+
+  /createSessions:
+    post:
+      tags:
+        - "sessions"
+      summary: "Creates new sessions"
+      description: "API that creates new sessions"
+      operationId: "createSessions"
+      requestBody:
+        description: "Sessions to create"
+        required: true
+        content:
+          application/json:
+            schema:
+              type: "array"
+              items:
+                $ref: "#/components/schemas/CreateSessionRequestData"
+      responses:
+        "200":
+          description: "Successful operation"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateSessionsResponse"
+        "400":
+          description: "Invalid input"
+  /deleteSessions:
+    post:
+      tags:
+        - "sessions"
+      summary: "Deletes sessions"
+      description: "Deletes the sessions requested"
+      operationId: "deleteSessions"
+      requestBody:
+        description: "Sessions to delete"
+        required: true
+        content:
+          application/json:
+            schema:
+              type: "array"
+              items:
+                $ref: "#/components/schemas/DeleteSessionRequestData"
+      responses:
+        "200":
+          description: "Successful operation"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeleteSessionsResponse"
+        "400":
+          description: "Invalid input"
+  /sessionPermissions:
+    put:
+      tags:
+        - "sessionPermissions"
+      summary: "Update session permissions"
+      description: "API that update session permissions"
+      operationId: "updateSessionPermissions"
+      requestBody:
+        description: "Sessions to update"
+        required: true
+        content:
+          application/json:
+            schema:
+              type: "array"
+              items:
+                $ref: "#/components/schemas/UpdateSessionPermissionsRequestData"
+      responses:
+        "200":
+          description: "Successful operation"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UpdateSessionPermissionsResponse"
+        "400":
+          description: "Invalid input"
+  /sessionConnectionData/{sessionId}/{user}:
+    get:
+      tags:
+        - "GetSessionConnectionData"
+      summary: "Gets the information to connect to a session"
+      operationId: "GetSessionConnectionData"
+      parameters:
+        - name: "sessionId"
+          in: "path"
+          description: "Session id to get connection details for"
+          required: true
+          schema:
+            type: "string"
+        - name: "user"
+          in: "path"
+          description: "User to get the connection token for"
+          required: true
+          schema:
+            type: "string"
+      responses:
+        "200":
+          description: "successful operation"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetSessionConnectionDataResponse"
+        "400":
+          description: "Invalid input"
+
+components:
+  schemas:
+    KeyValuePair:
+      type: "object"
+      description: "A generic key/value pair"
+      properties:
+        Key:
+          description: "The key of the pair"
+          type: "string"
+        Value:
+          description: "The value of the pair"
+          type: "string"
+    Server:
+      type: "object"
+      description: "The entity representing a server in DCV Session Manager"
+      properties:
+        Ip:
+          description: "The ip of the server"
+          type: "string"
+        Hostname:
+          description: "The hostname of the server"
+          type: "string"
+        Port:
+          description: "The port where the server listens"
+          type: "string"
+        WebUrlPath:
+          description: "The server web url path"
+          type: "string"
+        Tags:
+          description: "The tags of the server"
+          type: "array"
+          xml:
+            name: "tag"
+            wrapped: true
+          items:
+            $ref: "#/components/schemas/KeyValuePair"
+      xml:
+        name: "Server"
+    Session:
+      description: "The entity that represents a session in DCV session manager"
+      type: "object"
+      properties:
+        Id:
+          description: "The id of the session"
+          type: "string"
+        Name:
+          description: "The descriptive name of the session"
+          type: "string"
+          example: "test1"
+        Owner:
+          description: "The owner of the session"
+          type: "string"
+          example: "barbara"
+        Server:
+          description: "The server in which the session is"
+          $ref: "#/components/schemas/Server"
+        Type:
+          description: "The session type (Virtual or Console)"
+          type: string
+        MaxConcurrentClients:
+          description: "The number of max concurrent clients that can log to a session"
+          type: "integer"
+          format: "int64"
+        State:
+          description: "The session state"
+          type: string
+        StateReason:
+          description: "The reason for the current state of the session"
+          type: string
+        CreationTime:
+          description: "The session creation time"
+          type: string
+          format: date-time
+        LastDisconnectionTime:
+          description: "The last session disconnection time"
+          type: string
+          format: date-time
+        NumOfConnections:
+          description: "The number of connection to this dcv session."
+          type: "integer"
+          format: "int64"
+      xml:
+        name: "Session"
+    DescribeSessionsRequestData:
+      description: "The entity that represents the data that the user pass for describing the sessions"
+      properties:
+        SessionIds:
+          description: "The session ids"
+          type: "array"
+          items:
+            type: "string"
+        Filters:
+          description: "The filters. Filters supported: owner, tag:key. 'owner' The session owner to filter by. 'tag:key' The key/value combination of a tag assigned to the server. Use the tag key in the filter name and the tag value as the filter value. For example, to find all sessions that have a tag with the key City and the value London , specify tag:City for the filter name and London for the filter value."
+          type: "array"
+          items:
+            $ref: "#/components/schemas/KeyValuePair"
+        MaxResults:
+          description: "Number of results to show, if provided must be between 1 and 1000"
+          type: "integer"
+        NextToken:
+          description: "the pagination token"
+          type: "string"
+    DescribeSessionsResponse:
+      description: "The response to a describeSession request"
+      type: "object"
+      properties:
+        Sessions:
+          type: "array"
+          description: "The array of sessions described"
+          items:
+            $ref: "#/components/schemas/Session"
+        NextToken:
+          description: "The token used for pagination"
+          type: "string"
+    CreateSessionRequestData:
+      description: "The entity that represents the data that the user pass for creating a session in DCV session manager, an array of those entry forms the createSessionsRequest"
+      properties:
+        Name:
+          description: "The descriptive name of the session"
+          type: "string"
+          example: "test1"
+        Owner:
+          description: "The owner of the session"
+          type: "string"
+          example: "barbara"
+        Type:
+          description: "The session type (Virtual or Console)"
+          type: string
+        DcvGlEnabled:
+          description: "The property that specifies if DcvGl is enabled"
+          type: boolean
+        MaxConcurrentClients:
+          description: "The number of max concurrent clients that can log to a session"
+          type: "integer"
+          format: "int64"
+        InitFilePath:
+          description: "The init file path on the dcv host"
+          type: "string"
+        PermissionsFile:
+          description: "The permissions file"
+          type: "string"
+        Requirements:
+          description: "The required tags for the session. Example: ram_gb = '4' and software='my software'. The escape char is ', example irish_name='o''neil' "
+          type: "string"
+    UnsuccessfulCreateSessionRequestData:
+      description: "Data representing an unsuccessful request"
+      type: "object"
+      properties:
+        CreateSessionRequestData:
+          description: "The data related to the failure request"
+          $ref: "#/components/schemas/CreateSessionRequestData"
+        FailureReason:
+          description: "The failure reason"
+          type: "string"
+    CreateSessionsResponse:
+      description: "The response to a createSessions request"
+      type: "object"
+      properties:
+        RequestId:
+          description: "CreateSessions request id"
+          type: "string"
+        SuccessfulList:
+          type: "array"
+          description: "The array of sessions that are in process of being created"
+          items:
+            $ref: "#/components/schemas/Session"
+        UnsuccessfulList:
+          type: "array"
+          description: "The array of sessions that cannot be created"
+          items:
+            $ref: "#/components/schemas/UnsuccessfulCreateSessionRequestData"
+    DeleteSessionSuccessfulResponse:
+      description: "The successful response of a delete session"
+      properties:
+        SessionId:
+          description: "The session id"
+          type: "string"
+        State:
+          description: "The session state"
+          type: "string"
+    DeleteSessionUnsuccessfulResponse:
+      description: "The unsuccessful response of a delete session"
+      properties:
+        SessionId:
+          description: "The session id"
+          type: "string"
+        FailureReason:
+          description: "The failure reason"
+          type: "string"
+    UpdateSessionPermissionsSuccessfulResponse:
+      description: "The successful response of a update session permissions"
+      properties:
+        SessionId:
+          description: "The session id"
+          type: "string"
+    UpdateSessionPermissionsUnsuccessfulResponse:
+      description: "The unsuccessful response of a update session permissions"
+      properties:
+        SessionId:
+          description: "The session id"
+          type: "string"
+        FailureReason:
+          description: "The failure reason"
+          type: "string"
+    DeleteSessionsResponse:
+      description: "The response to a deleteSessions request"
+      type: "object"
+      properties:
+        RequestId:
+          description: "DeleteSessions request id"
+          type: "string"
+        SuccessfulList:
+          type: "array"
+          description: "The array of sessions that are in process of being deleted"
+          items:
+            $ref: "#/components/schemas/DeleteSessionSuccessfulResponse"
+        UnsuccessfulList:
+          type: "array"
+          description: "The array of sessions that cannot be deleted"
+          items:
+            $ref: "#/components/schemas/DeleteSessionUnsuccessfulResponse"
+    DeleteSessionRequestData:
+      description: "The entity that represents the data that the user pass for deleting a session in DCV session manager, an array of those entry forms the deleteSessionRequest"
+      properties:
+        SessionId:
+          description: "The session id"
+          type: "string"
+        Owner:
+          description: "The owner"
+          type: "string"
+        Force:
+          description: "The parameter to force a deletion"
+          type: "boolean"
+          default: "false"
+    UpdateSessionPermissionsRequestData:
+      description: "The entity that represents the data that the user pass for updating the permissions of a session in DCV session manager, an array of those entry forms the updateSessionPermissionsRequest"
+      properties:
+        SessionId:
+          description: "The session id"
+          type: "string"
+        Owner:
+          description: "The owner"
+          type: "string"
+        PermissionsFile:
+          description: "The permissions file base64 encoded"
+          type: "string"
+    UpdateSessionPermissionsResponse:
+      description: "The update session permission response"
+      properties:
+        RequestId:
+          description: "UpdateSessionPermissions request id"
+          type: "string"
+        SuccessfulList:
+          type: "array"
+          description: "The array of sessions that are in process of having the permissions updated"
+          items:
+            $ref: "#/components/schemas/UpdateSessionPermissionsSuccessfulResponse"
+        UnsuccessfulList:
+          type: "array"
+          description: "The array of sessions that cannot have the permissions updated"
+          items:
+            $ref: "#/components/schemas/UpdateSessionPermissionsUnsuccessfulResponse"
+    GetSessionConnectionDataResponse:
+      description: "The get session connection data response"
+      type: "object"
+      properties:
+        Session:
+          description: "Session to connect to"
+          $ref: "#/components/schemas/Session"
+        ConnectionToken:
+          description: "The token used to connect to the session"
+          type: "string"

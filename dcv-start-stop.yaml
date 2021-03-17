@@ -1,0 +1,500 @@
+AWSTemplateFormatVersion: '2010-09-09'
+
+Description: Simple solution to start/stop DCV instances based an AWS SSM Maintenance Window workflow
+
+Parameters: 
+  EC2KeyPair: 
+    Type: 'AWS::EC2::KeyPair::KeyName'
+  SecurityGroup: 
+    Type: 'AWS::EC2::SecurityGroup::Id'
+  Instance:
+    Type: String
+    Default: g4dn.2xlarge
+    AllowedValues:
+      - g3.4xlarge
+      - g3.8xlarge
+      - g3.16xlarge
+      - g3s.xlarge
+      - g4dn.xlarge
+      - g4dn.2xlarge
+      - g4dn.4xlarge
+      - g4dn.8xlarge
+      - g4dn.12xlarge
+      - g4dn.16xlarge
+      - p3.2xlarge
+      - p3.8xlarge
+      - p3.16xlarge
+      - p3dn.24xlarge
+  Minutes:
+    Type: Number
+    Default: 10
+    AllowedValues:
+      - 10
+      - 15
+      - 20
+      - 25
+      - 30
+      - 60
+  Tag:
+    Type: String
+    Default: "DCV"
+    AllowedPattern: "^[a-zA-Z0-9]*$"
+  TagValue: 
+    Type: String 
+    Default: "Yes"
+    AllowedPattern: "^[a-zA-Z0-9]*$"
+
+Metadata: 
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label: 
+          default: 'Network information'
+        Parameters:
+          - SecurityGroup
+      - Label: 
+          default: 'Amazon EC2 information' 
+        Parameters:
+          - EC2KeyPair
+          - Instance
+      - Label: 
+          default: 'AWS System Manager information'
+        Parameters:
+          - Tag 
+          - TagValue
+          - Minutes
+    ParameterLabels:
+      EC2KeyPair:
+        default: EC2 Key Pair to decode the Windows password
+      SecurityGroup:
+        default: Security Group to use with the DCV instance - must allow ingress on port 8443
+      Instance: 
+        default: Instance Type - must have GPU if your workloads requires intense graphic processing
+      Minutes:
+        default: How frequently the Maintenance Window should run its tasks to identify idle DCV instances 
+      Tag:
+        default: Name of the Tag that will be monitored by the solution 
+      TagValue:
+        default: Value of the Tag that will be monitored by the solution 
+
+Mappings:
+  DCVServer:
+    us-east-1:
+      "HVM64": ami-05f5825affeec78e9
+    us-east-2:
+      "HVM64": ami-05c85de49cdb0ce40
+    us-west-1:
+      "HVM64": ami-0af3c3830a0d0d567
+    us-west-2:
+      "HVM64": ami-019ff0a55b514e755
+    eu-north-1:
+      "HVM64": ami-0bdfd5a2e10328d8d
+    ap-south-1:
+      "HVM64": ami-0c2a5e20ed035feca
+    eu-west-3:
+      "HVM64": ami-04e9155e27944d4e0
+    eu-west-2:
+      "HVM64": ami-045be6886a93c8130
+    eu-west-1:
+      "HVM64": ami-0547e6987ff6a09e6
+    ap-northeast-2:
+      "HVM64": ami-0a8e306e2265fbd90
+    ap-northeast-1:
+      "HVM64": ami-0a651db9a351a96a6
+    ap-southeast-1:
+      "HVM64": ami-05a42cd504e9d2f85
+    ap-southeast-2:
+      "HVM64": ami-0b0154d9daba62781
+    eu-central-1:
+      "HVM64": ami-0aa4f904d736d1114
+    sa-east-1:
+      "HVM64": ami-0bebd725a3c8b578f
+
+Resources:
+  # SSM Document to start the DCV Monitor inside the instance - must be run every time an instance start
+  StartDCVMonitorForConnections:
+    Type: AWS::SSM::Document
+    Properties: 
+      Content: 
+        schemaVersion: '2.2'
+        description: 'Start a script that will monitor if there is an active session'
+        parameters: 
+          dcvtopic:
+            type: String
+            description: "SNS topic ARN"
+            default: !Ref DCVTopic
+          commands: 
+            type: String 
+            description: 'monitor for onDisconnect and wait 30min before sending a SNS message to stop the instance'
+            default: | 
+              $stopWatch = New-Object -TypeName System.Diagnostics.StopWatch;
+              $timer = New-TimeSpan -Minutes 1;
+              $stopWatch.Start();
+              
+              $conn = Invoke-Expression -Command 'C:\Program` Files\NICE\DCV\Server\bin\dcv list-connections -j console |ConvertFrom-Json';
+              if ($conn) {
+                  Write-Host "There are active connections. Exiting.";
+                  exit
+              } else {
+                  Start-Sleep -Seconds 10;
+                  while ($stopWatch.Elapsed -le $timer) {
+                      $conn = Invoke-Expression -Command 'C:\Program` Files\NICE\DCV\Server\bin\dcv list-connections -j console |ConvertFrom-Json';
+                      if (!$conn) {
+                          Start-Sleep -Seconds 60;
+                      } else {
+                          Write-Host "There are active connections. Exiting."
+                          exit
+                      }
+                  }
+                  if (!$conn) {
+                      Write-Host "No connections for 30min. Sending message to topic.";
+                      $instance_id = Get-EC2InstanceMetadata -Category InstanceId;
+                      Publish-SNSMessage -TopicArn ${dcvtopic} -Message "{""default"":""${instance_id}""}" -MessageStructure 'json' -Subject 'DCV user disconnected';
+                  } else { 
+                      Write-Host "Some error occurred and the message was not posted."
+                      exit
+                  }
+              }
+        mainSteps:
+        - action: aws:runPowerShellScript
+          name: 'runPowerShellScript'
+          inputs: 
+            timeoutSeconds: 2100
+            runCommand: 
+              - "$dcvtopic=\"{{ dcvtopic }}\""
+              - "{{ commands }}"
+      DocumentType: Command 
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+
+  SSMMaintenanceWindow:
+    Type: AWS::SSM::MaintenanceWindow
+    Properties: 
+      AllowUnassociatedTargets: False
+      Cutoff: 0
+      Description: Will verify if there are active connections
+      Duration: 1
+      Name: DCV-Monitor-Idle-Instances
+      Schedule: !Sub cron(0 */${Minutes} * * * ? *)
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+
+  SSMMaintenanceWindowTargets:
+    Type: AWS::SSM::MaintenanceWindowTarget
+    Properties:
+      Description: DCV instances that have been instantiated with the correct tag 
+      ResourceType: INSTANCE 
+      Targets: 
+        - Key: !Sub tag:${Tag} 
+          Values: 
+            - !Ref TagValue 
+      WindowId: !Ref SSMMaintenanceWindow
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+
+  SSMMaintenanceWindowTask:
+    Type: AWS::SSM::MaintenanceWindowTask
+    Properties:
+      Description: using the SSM Document that will verify if there are idle connections in the DCV instance 
+      MaxConcurrency: '7' 
+      MaxErrors: '7'
+      Priority: 0
+      Targets: 
+        - Key: WindowTargetIds
+          Values: 
+            - !Ref SSMMaintenanceWindowTargets
+      TaskArn: !Ref StartDCVMonitorForConnections
+      TaskType: RUN_COMMAND
+      WindowId: !Ref SSMMaintenanceWindow
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+
+  # Lambda function to stop a DCV instance based on the instanceId
+  DCVStopInstanceLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        ZipFile: |
+          import json
+          import boto3
+
+          ec2 = boto3.client('ec2')
+          ssm = boto3.client('ssm')
+
+          def stopDcvInstance(e):
+              try:
+                  stopResponse = ec2.stop_instances(
+                      InstanceIds=[
+                          e
+                      ]
+                  )
+                  print(stopResponse)
+              except: 
+                  print('Could not stop the instance %', e)
+                  return {
+                      'statusCode': '200',
+                      'body': 'Could not stop the instance'
+                  }
+
+          def verifyDcvConnections(e):
+              try:
+                  # targetting specific instances by instanceId
+                  # if you want to target instances by Tags, add a 'targets' section in the send_command() API. Check the boto3 doc to learn more about it.
+                  ssmResponse = ssm.send_command(
+                      InstanceIds=[
+                          e
+                      ],
+                      DocumentName='DCV-Verify-Active-Connection',
+                      DocumentVersion='$DEFAULT',
+                      TimeoutSeconds=10,
+                      CloudWatchOutputConfig={
+                          'CloudWatchLogGroupName': '/aws/lambda/stop-dcv-instance',
+                          'CloudWatchOutputEnabled': True
+                      }
+                  )
+                  print(ssmResponse)
+              except:
+                  print('Could not send SSM RunCommand to %', e)
+                  return {
+                      'statusCode': '200',
+                      'body': 'Problem trying to execute the SSM RunCommand'
+                  }
+
+              
+          def lambda_handler(event, context):
+              print(event)
+              
+              if ('instanceId' in event):
+                  # message from SSM is actually a string within a JSON key, need to transform into JSON
+                  instance_id = json.loads(event['Records'][0]['Sns']['Message'])['instanceId']        
+                  print(instance_id)
+              else:
+                  instance_id = event['Records'][0]['Sns']['Message']
+                  print(instance_id)
+              
+              # verify if there is a connected session before stopping the instance
+              # verifyDcvConnections(instance_id)
+              
+              stopDcvInstance(instance_id)
+              
+              return {
+                  'statusCode': '200',
+                  'body': 'Instance stopped succesfully'
+              }
+      FunctionName: 'manage-dcv-instance'
+      Handler: index.lambda_handler
+      MemorySize: 128
+      Role: !GetAtt DCVLambdaExecutionRole.Arn
+      Runtime: python3.7
+      Timeout: 30
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+
+  # IAM Role to attach to the Lambda Function
+  # must allow: write to log group and EC2 StopInstance
+  DCVLambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Path: /
+      AssumeRolePolicyDocument: 
+        Statement:
+          - Action: 'sts:AssumeRole'
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+      Policies:
+        - PolicyName: "AllowInvokeFunction"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement: 
+              - Effect: "Allow" 
+                Action: "lambda:InvokeFunction"
+                Resource: "*"
+        - PolicyName: 'AllowStopInstance'
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: "Allow"
+                Action: "ec2:StopInstances"
+                Resource: !Sub arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:instance/*
+                #Condition:
+                #  StringEquals:
+                #    - !Sub '"aws:ResourceTag/"${Tag}: ${TagValue} ' ##TODO:  Still trying to add tags as a condition and implement least privilege
+        - PolicyName: 'LambdaExecutionPolicy'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement: 
+              - Effect: Allow
+                Action: 
+                  - 'logs:CreateLogGroup'
+                Resource:
+                  - !Sub arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:*
+              - Effect: Allow
+                Action: 
+                  - 'logs:CreateLogStream'
+                  - 'logs:PutLogEvents'
+                Resource:
+                  - !Sub arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/*:*
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+
+  # Allow SNS to call the DCVStopInstance function
+  DCVLambdaPermissions:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: "lambda:InvokeFunction"
+      FunctionName: !GetAtt DCVStopInstanceLambda.Arn
+      Principal: "sns.amazonaws.com"
+      SourceArn: !Ref DCVTopic
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+
+  # SNS Topic to orchestrate the integration
+  DCVTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      DisplayName: ManageDCVInstances
+      TopicName: ManageDCVInstances
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+
+  # SNS Subscription for the DCVStopInstance lambda
+  DCVLambdaSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      TopicArn: !Ref DCVTopic
+      Protocol: lambda
+      Endpoint: !GetAtt DCVStopInstanceLambda.Arn
+      Region: !Ref 'AWS::Region'
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+
+  DCVInstanceRole:
+    Type: AWS::IAM::Role 
+    Properties:
+      Description: allows an EC2 Instance to be managed by SSM and send messages to an Amazon SNS topic 
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement: 
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+                - ssm.amazonaws.com
+            Action: 
+              - 'sts:AssumeRole'
+      Path: /
+      Policies:
+        - PolicyName: AllowPublishMessage
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: 
+                  - 'sns:Publish' 
+                Resource: !Ref DCVTopic
+        - PolicyName: AccessDCVLicenseBucket
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement: 
+              - Effect: Allow
+                Action: 
+                  - 's3:GetObject' 
+                Resource: !Sub arn:${AWS::Partition}:s3:::dcv-license.${AWS::Region}/*
+        - PolicyName: SSMManageInstance
+          PolicyDocument: 
+            Version: '2012-10-17'
+            Statement: 
+              - Effect: Allow
+                Action: 
+                  - 'ssm:GetDeployablePatchSnapshotForInstance'
+                  - 'ssm:GetManifest'
+                  - 'ssm:ListAssociations'
+                  - 'ssm:PutInventory'
+                  - 'ssm:PutConfigurePackageResult'
+                  - 'ssm:UpdateInstanceInformation'
+                Resource: "*" # those actions only support all resources. TODO: scope down to the account itself.
+              - Effect: Allow
+                Action: 
+                  - 'ssm:GetDocument'
+                  - 'ssm:DescribeDocument'
+                  - 'ssm:GetParameter'
+                  - 'ssm:GetParameters'
+                Resource: 
+                  - !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:document/*
+                  - !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/*
+              - Effect: Allow
+                Action: 
+                  - 'ssm:DescribeAssociation'
+                  - 'ssm:ListInstanceAssociations'
+                  - 'ssm:PutComplianceItems'
+                  - 'ssm:UpdateAssociationStatus'
+                  - 'ssm:UpdateInstanceAssociationStatus'
+                Resource: 
+                  - !Sub arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:instance/*
+                  - !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:managed-instance/*
+                  - !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:document/DCV-Identify-Active-Connections
+                  - !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:association/*
+                  - !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/*
+              - Effect: Allow
+                Action: 
+                  - 'ssmmessages:CreateControlChannel'
+                  - 'ssmmessages:CreateDataChannel'
+                  - 'ssmmessages:OpenControlChannel'
+                  - 'ssmmessages:OpenDataChannel'
+                Resource: "*" # those actions only support all resources. TODO: scope down to the account itself.
+              - Effect: Allow
+                Action:
+                  - 'ec2messages:AcknowledgeMessage'
+                  - 'ec2messages:DeleteMessage'
+                  - 'ec2messages:FailMessage'
+                  - 'ec2messages:GetEndpoint'
+                  - 'ec2messages:GetMessages'
+                  - 'ec2messages:SendReply'
+                Resource: "*" # those actions only support all resources. TODO: scope down to the account itself.
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+
+  DCVInstanceProfile:
+    Type: AWS::IAM::InstanceProfile 
+    Properties:
+      Path: / 
+      Roles:
+        - !Ref DCVInstanceRole
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+
+  DCVLaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate 
+    Properties:
+      LaunchTemplateData:
+        IamInstanceProfile:
+          Arn: !GetAtt DCVInstanceProfile.Arn 
+        ImageId: !FindInMap [DCVServer, !Ref 'AWS::Region', HVM64] 
+        InstanceType: !Ref Instance 
+        KeyName: !Ref EC2KeyPair
+        SecurityGroupIds: 
+          - !Ref SecurityGroup 
+        TagSpecifications: 
+          - ResourceType: instance
+            Tags:
+              - Key: !Ref Tag
+                Value: !Ref TagValue
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+
+Outputs:
+  SNSTopic:
+    Description: SNS Topic used to orchestrate the solution
+    Value: !GetAtt DCVTopic.TopicName
+  LambdaFunction: 
+    Description: Lambda function that manage stopping the instances
+    Value: !Ref DCVStopInstanceLambda
+  SSMDocument: 
+    Description: the SSM Document that verifies if there are active connections in the DCV instance
+    Value: !Ref StartDCVMonitorForConnections
+  LaunchTemplate:
+    Description: the EC2 Launch Template created for the solution
+    Value: !Ref DCVLaunchTemplate
+  SSMDocumentName:
+    Description: the AWS System Manager Document created 
+    Value: !Ref StartDCVMonitorForConnections

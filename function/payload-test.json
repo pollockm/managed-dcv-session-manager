@@ -1,0 +1,61 @@
+{
+    "resource": "/auth",
+    "path": "/auth/",
+    "httpMethod": "POST",
+    "headers": {
+        "Accept-Encoding": "gzip, deflate",
+        "Content-Type": "application/x-www-form-urlencoded",
+        "Host": "a4118xol8b.execute-api.us-east-1.amazonaws.com",
+        "User-Agent": "DCV/2020.1 (r9012)",
+        "X-Amzn-Trace-Id": "Root=1-5fd2c4bb-6ab74c177f2b13352fa25835",
+        "X-Forwarded-For": "54.198.33.177",
+        "X-Forwarded-Port": "443",
+        "X-Forwarded-Proto": "https"
+    },
+    "multiValueHeaders": {
+        "Accept-Encoding": ["gzip, deflate"],
+        "Content-Type": ["application/x-www-form-urlencoded"],
+        "Host": ["a4118xol8b.execute-api.us-east-1.amazonaws.com"],
+        "User-Agent": ["DCV/2020.1 (r9012)"],
+        "X-Amzn-Trace-Id": ["Root=1-5fd2c4bb-6ab74c177f2b13352fa25835"],
+        "X-Forwarded-For": ["54.198.33.177"],
+        "X-Forwarded-Port": ["443"],
+        "X-Forwarded-Proto": ["https"]
+    },
+    "queryStringParameters": None,
+    "multiValueQueryStringParameters": None,
+    "pathParameters": None,
+    "stageVariables": None,
+    "requestContext": {
+        "resourceId": "y9ouqw",
+        "resourcePath": "/auth",
+        "httpMethod": "POST",
+        "extendedRequestId": "XXOtQHPooAMF4hA=",
+        "requestTime": "11/Dec/2020:01:00:43 +0000",
+        "path": "/prod/auth/",
+        "accountId": "441224055073",
+        "protocol": "HTTP/1.1",
+        "stage": "prod",
+        "domainPrefix": "a4118xol8b",
+        "requestTimeEpoch": 1607648443103,
+        "requestId": "16a52000-fcb2-4df2-9a1d-b72f0ae62b9f",
+        "identity": {
+            "cognitoIdentityPoolId": None,
+            "accountId": None,
+            "cognitoIdentityId": None,
+            "caller": None,
+            "sourceIp": "54.198.33.177",
+            "principalOrgId": None,
+            "accessKey": None,
+            "cognitoAuthenticationType": None,
+            "cognitoAuthenticationProvider": None,
+            "userArn": None,
+            "userAgent": "DCV/2020.1 (r9012)",
+            "user": None
+        },
+        "domainName": "a4118xol8b.execute-api.us-east-1.amazonaws.com",
+        "apiId": "a4118xol8b"
+    },
+    "body": "sessionId=console&authenticationToken=%22nicedcvauthserver%22&clientAddress=189.110.245.70%3A62462",
+    "isBase64Encoded": False
+}

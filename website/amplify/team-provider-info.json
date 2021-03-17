@@ -1,0 +1,76 @@
+{
+  "dev": {
+    "awscloudformation": {
+      "AuthRoleName": "amplify-dcvstartstop-dev-102057-authRole",
+      "UnauthRoleArn": "arn:aws:iam::441224055073:role/amplify-dcvstartstop-dev-102057-unauthRole",
+      "AuthRoleArn": "arn:aws:iam::441224055073:role/amplify-dcvstartstop-dev-102057-authRole",
+      "Region": "us-east-1",
+      "DeploymentBucketName": "amplify-dcvstartstop-dev-102057-deployment",
+      "UnauthRoleName": "amplify-dcvstartstop-dev-102057-unauthRole",
+      "StackName": "amplify-dcvstartstop-dev-102057",
+      "StackId": "arn:aws:cloudformation:us-east-1:441224055073:stack/amplify-dcvstartstop-dev-102057/10207180-2f21-11eb-b473-12fa5e526083",
+      "AmplifyAppId": "d2vrhbwft1ee45"
+    },
+    "categories": {
+      "auth": {
+        "dcvstartstopc883f3ed": {}
+      },
+      "function": {
+        "swaggerclient": {
+          "deploymentBucketName": "amplify-dcvstartstop-dev-102057-deployment",
+          "s3Key": "amplify-builds/swaggerclient-build.zip"
+        }
+      }
+    },
+    "nonCFNdata": {
+      "function": {
+        "swaggerclient": {
+          "layerVersionMap": {
+            "1": {
+              "permissions": [
+                {
+                  "type": "awsAccounts",
+                  "accounts": [
+                    "441224055073"
+                  ]
+                },
+                {
+                  "type": "private"
+                }
+              ],
+              "hash": "Ph6suDGBGGNNvstspaUx0sCM5GE2ekp8vt6B/YdZx/M="
+            },
+            "2": {
+              "permissions": [
+                {
+                  "type": "awsAccounts",
+                  "accounts": [
+                    "441224055073"
+                  ]
+                },
+                {
+                  "type": "private"
+                }
+              ],
+              "hash": "b1kEjnPvZUpgTtyVqc7li7wcGNtsKTZC6J/KUoj9Lh8="
+            },
+            "3": {
+              "permissions": [
+                {
+                  "type": "awsAccounts",
+                  "accounts": [
+                    "441224055073"
+                  ]
+                },
+                {
+                  "type": "private"
+                }
+              ],
+              "hash": "pVtJlzLFrJEXfA6d1G3mgpxYkwv0tVi0foWjWIAS/nU="
+            }
+          }
+        }
+      }
+    }
+  }
+}

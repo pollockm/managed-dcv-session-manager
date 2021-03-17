@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "auth": {
+      "dcvstartstopc883f3ed": [
+        "read"
+      ]
+    }
+  },
+  "lambdaLayers": []
+}

@@ -1,0 +1,29 @@
+enum Action {
+  create
+  list
+  delete
+  connection
+}
+
+enum Glenabled { yes no }
+
+type Query {
+  listDcv(tag: String!): String @function(name: "dcvstartstop-${env}") 
+  createDcv(
+    tag: String, 
+    id: String, 
+    keyName: String, 
+    instanceType: String, 
+    instanceName: String,
+    action: Action!
+  ): String @function(name: "createdcvinstance-${env}")
+  brokerActions(
+    action: Action!,
+    sessionId: String,
+    owner: String,
+    sessionType: String,
+    concurrency: Int,
+    glenabled: Glenabled,
+    tags: [String]
+  ): String @function(name: "dcvclientbroker-${env}")
+}

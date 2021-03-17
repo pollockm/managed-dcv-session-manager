@@ -1,0 +1,21 @@
+{
+    "appName": "dcvstartstop",
+    "roleName": "pinpointLambdaRole8ae69d37",
+    "cloudformationPolicyName": "cloudformationPolicy8ae69d37",
+    "cloudWatchPolicyName": "cloudWatchPolicy8ae69d37",
+    "pinpointPolicyName": "pinpointPolicy8ae69d37",
+    "authPolicyName": "pinpoint_amplify_8ae69d37",
+    "unauthPolicyName": "pinpoint_amplify_8ae69d37",
+    "authRoleName": {
+        "Ref": "AuthRoleName"
+    },
+    "unauthRoleName": {
+        "Ref": "UnauthRoleName"
+    },
+    "authRoleArn": {
+        "Fn::GetAtt": [
+            "AuthRole",
+            "Arn"
+        ]
+    }
+}
