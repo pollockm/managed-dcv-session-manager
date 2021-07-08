@@ -20,7 +20,7 @@ This solution was created based on a customer feedback, and it integrates many o
 
 &nbsp;
 
-In the next sections I will go through the steps required to run this demo, and explain a bit of how it is setup. Before you run this demo, either make sure you have setup the solution following the steps below or that you have deployed in by using the AWS CloudFormation stack provided [here](https://code.amazon.com) 
+In the next sections I will go through the steps required to run this demo, and explain a bit of how it is setup. Before you run this demo, either make sure you have setup the solution following the steps below or that you have deployed in by using the AWS CloudFormation stack provided . 
 
 &nbsp;
 ## Step 1: Show the services used and how they are configured
