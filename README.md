@@ -147,10 +147,4 @@ mainSteps:
   9. Go back to the Amazon EC2 panel and show that the server has been shutdown
 &nbsp;
 
-## Step 5: Discuss any other topic your customer might want to discuss
-***
 
-  1. I hope this has been a good demo, and that it helped understanding how you can create a custom solution that will spin up/down DCV servers.
-  2. If you require more details about DCV, have additional questions, or anything related to DCV, please find a lot of experts in the Slack channel #dcv-interest 
-  3. If this demo helped you, please take a minute and either drop me an email or send a message directly to my manager (please, check who he/she/they in Phone Tool)
-&nbsp;
