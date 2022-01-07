@@ -1,5 +1,3 @@
-# This is a sandbox fork of the original, for exploration purposes.  Please refer to upstream for the definitive version.
-
 # Demo - Managed DCV solution
 &nbsp;
 
